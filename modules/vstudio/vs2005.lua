@@ -35,7 +35,8 @@
 			-- Skip generation of empty user files
 			local user = p.capture(function() vstudio.cs2005.generateUser(prj) end)
 			if #user > 0 then
-				p.generate(prj, ".csproj.user", function() p.outln(user) end)
+				-- Skip generation of user files if it already exists
+				p.generate(prj, ".csproj.user", function() p.outln(user) end, --[[overwrite]] false)
 			end
 		elseif p.project.isfsharp(prj) then
 			p.generate(prj, ".fsproj", vstudio.fs2005.generate)
@@ -43,7 +44,8 @@
 			-- Skip generation of empty user files
 			local user = p.capture(function() vstudio.fs2005.generateUser(prj) end)
 			if #user > 0 then
-				p.generate(prj, ".fsproj.user", function() p.outln(user) end)
+				-- Skip generation of user files if it already exists
+				p.generate(prj, ".fsproj.user", function() p.outln(user) end, --[[overwrite]] false)
 			end
 		else
 			p.generate(prj, ".vcproj", vstudio.vc200x.generate)
@@ -51,7 +53,8 @@
 			-- Skip generation of empty user files
 			local user = p.capture(function() vstudio.vc200x.generateUser(prj) end)
 			if #user > 0 then
-				p.generate(prj, ".vcproj.user", function() p.outln(user) end)
+				-- Skip generation of user files if it already exists
+				p.generate(prj, ".vcproj.user", function() p.outln(user) end, --[[overwrite]] false)
 			end
 		end
 	end

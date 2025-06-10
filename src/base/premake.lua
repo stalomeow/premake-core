@@ -148,16 +148,23 @@
 -- @param callback
 --    The function responsible for writing the file, should take a workspace
 --    or project as a parameters.
+-- @param overwrite?
+--    If set to false, the file will not be overwritten if it already exists.
+--    Defaults to true, which means the file will be overwritten if it exists.
 --
 
-	function premake.generate(obj, ext, callback)
+	function premake.generate(obj, ext, callback, overwrite)
+		local fn = p.filename(obj, ext)
+
+		if overwrite == false and os.isfile(fn) then
+			return false -- file already exists and overwrite is false
+		end
+
 		local output = p.capture(function ()
 			_indentLevel = 0
 			callback(obj)
 			_indentLevel = 0
 		end)
-
-		local fn = p.filename(obj, ext)
 
 		-- make sure output folder exists.
 		local dir = path.getdirectory(fn)

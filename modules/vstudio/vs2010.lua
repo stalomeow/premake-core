@@ -57,7 +57,8 @@
 			-- Skip generation of empty user files
 			local user = p.capture(function() vstudio.cs2005.generateUser(prj) end)
 			if #user > 0 then
-				p.generate(prj, ".csproj.user", function() p.outln(user) end)
+				-- Skip generation of user files if it already exists
+				p.generate(prj, ".csproj.user", function() p.outln(user) end, --[[overwrite]] false)
 			end
 
 		elseif p.project.isfsharp(prj) then
@@ -66,7 +67,8 @@
 			-- Skip generation of empty user files
 			local user = p.capture(function() vstudio.fs2005.generateUser(prj) end)
 			if #user > 0 then
-				p.generate(prj, ".fsproj.user", function() p.outln(user) end)
+				-- Skip generation of user files if it already exists
+				p.generate(prj, ".fsproj.user", function() p.outln(user) end, --[[overwrite]] false)
 			end
 
 		elseif p.project.isc(prj) or p.project.iscpp(prj) then
@@ -93,7 +95,8 @@
 					-- Skip generation of empty user files
 					local user = p.capture(function() vstudio.vc2010.generateUser(prj) end)
 					if #user > 0 then
-						p.generate(prj, ".androidproj.user", function() p.outln(user) end)
+						-- Skip generation of user files if it already exists
+						p.generate(prj, ".androidproj.user", function() p.outln(user) end, --[[overwrite]] false)
 					end
 				end
 
@@ -103,7 +106,8 @@
 				-- Skip generation of empty user files
 				local user = p.capture(function() vstudio.vc2010.generateUser(prj) end)
 				if #user > 0 then
-					p.generate(prj, ".vcxproj.user", function() p.outln(user) end)
+					-- Skip generation of user files if it already exists
+					p.generate(prj, ".vcxproj.user", function() p.outln(user) end, --[[overwrite]] false)
 				end
 
 				-- Only generate a filters file if the source tree actually has subfolders
