@@ -800,6 +800,12 @@
 	}
 
 	api.register {
+		name = "configfiles",
+		scope = "workspace",
+		kind = "list:path",
+	}
+
+	api.register {
 		name = "staticruntime",
 		scope = "config",
 		kind = "string",

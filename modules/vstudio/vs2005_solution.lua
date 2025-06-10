@@ -120,6 +120,21 @@
 --
 
 	function sln2005.projects(wks)
+		if wks.configfiles and #wks.configfiles > 0 then
+			local folderName = 'Configurations'
+			local folderUUID = os.uuid(string.format('%s:%s', folderName, wks.name))
+			p.x('Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "%s", "%s", "{%s}"', folderName, folderName, folderUUID)
+			p.push()
+			p.push('ProjectSection(SolutionItems) = preProject')
+
+			for _, f in ipairs(wks.configfiles) do
+				p.w(f .. ' = ' .. f)
+			end
+
+			p.pop('EndProjectSection')
+			p.pop('EndProject')
+		end
+
 		local tr = p.workspace.grouptree(wks)
 		tree.traverse(tr, {
 			onleaf = function(n)
