@@ -117,7 +117,7 @@
 		local tools = string.format(' ToolsVersion="%s"', action.vstudio.toolsVersion)
 
 		local framework = prj.dotnetframework or action.vstudio.targetFramework or "4.0"
-		if framework and dotnetbase.isNewFormatProject(prj) then
+		if framework then
 			p.w('<TargetFramework>%s</TargetFramework>', framework)
 		else
 			p.w('<TargetFrameworkVersion>v%s</TargetFrameworkVersion>', framework)

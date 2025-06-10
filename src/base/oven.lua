@@ -917,6 +917,21 @@
 				end
 			end
 
+			-- runtimedeps 默认 PUBLIC，会传递到所有依赖中
+			if srcprj.runtimedeps then
+				local k = "runtimedeps"
+				local v = srcprj.runtimedeps
+				local f = p.field.get(k)
+				if f then
+					properties[k] = p.field.store(f, properties[k], v)
+				end
+			end
+
+			-- 如果当前项目是 StaticLib，不需要处理其他项目 PUBLIC 的链接
+			if tgt.kind == "StaticLib" and srcprj ~= tgt.project then
+				properties.links = nil
+			end
+
 			return properties
 		end
 
@@ -967,6 +982,45 @@
 			return {}
 		end
 
+		local function convertRuntimeDepsToCmds(runtimeDeps)
+			local function getCmd(name, abspath)
+				-- 如果 name 以 / 结尾，表示是一个目录
+				if string.sub(name, -1) == "/" then
+					return string.format("{COPYDIR} %%[%s] %%[%%{!cfg.targetdir}/%s]", abspath, name)
+				else
+					return string.format('{COPYFILE} %%[%s] %%[%%{!cfg.targetdir}/%s]', abspath, name)
+				end
+			end
+
+			local cmds = {}
+			for name, abspath in pairs(runtimeDeps) do
+				if #name > 0 then
+					-- 排序，避免每次生成的顺序不同导致 project file 变化
+					table.insertsorted(cmds, getCmd(name, abspath))
+				end
+			end
+			return cmds
+		end
+
+		local function processRuntimeDeps(cfg)
+			-- 如果当前项目是 App，需要在 post-build 命令中拷贝 runtime-deps
+			local isApp = (cfg.kind == "ConsoleApp" or cfg.kind == "WindowedApp")
+
+			for _, block in ipairs(cfg._cfgset.blocks) do
+				if block.runtimedeps and isApp then
+					local k = "postbuildcommands"
+					local v = convertRuntimeDepsToCmds(block.runtimedeps)
+					local f = p.field.get(k)
+					if f then
+						block[k] = p.field.store(f, block[k], v)
+					end
+				end
+
+				-- 不需要再保留 runtimedeps 了
+				block.runtimedeps = nil
+			end
+		end
+
 		verbosef('    Baking usages...')
 
 		for wks in p.global.eachWorkspace() do
@@ -1003,6 +1057,7 @@
 					end
 
 					table.insert(cfg._cfgset.blocks, allprops)
+					processRuntimeDeps(cfg)
 				end
 			end
 		end

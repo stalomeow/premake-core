@@ -40,7 +40,6 @@
 			dotnetbase.appDesignerFolder,
 			dotnetbase.rootNamespace,
 			dotnetbase.assemblyName,
-			dotnetbase.targetFrameworkVersion,
 			dotnetbase.targetFrameworkProfile,
 			dotnetbase.projectTypeGuids
 		}

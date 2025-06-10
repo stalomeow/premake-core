@@ -271,16 +271,18 @@
 --
 
 	function vstudio.archFromConfig(cfg, win32)
-		local isnative = project.isnative(cfg.project)
+		if project.isdotnet(cfg.project) then
+			return "Any CPU" -- C# 项目永远都是 Any CPU
+		end
 
 		local arch = architecture(cfg.system, cfg.architecture)
 		if not arch then
-			arch = iif(isnative, "x86", "Any CPU")
+			arch = "x86"
 		end
 
 		if cfg.system == p.WINDOWS or cfg.system == p.UWP then
 
-			if win32 and isnative and arch == "x86" then
+			if win32 and arch == "x86" then
 				arch = "Win32"
 			end
 
@@ -465,25 +467,11 @@
 
 --
 -- Returns a project configuration name corresponding to the given
--- Premake configuration. This is just the solution build configuration
--- and platform identifiers concatenated.
+-- Premake configuration.
 --
 
 	function vstudio.projectPlatform(cfg)
-		local platform = cfg.platform
-		if platform then
-			local pltarch = vstudio.archFromPlatform(cfg.platform) or platform
-			local cfgarch = vstudio.archFromConfig(cfg)
-			if pltarch == cfgarch then
-				platform = nil
-			end
-		end
-
-		if platform then
-			return cfg.buildcfg .. " " .. platform
-		else
-			return cfg.buildcfg
-		end
+		return cfg.buildcfg -- 只保留 Debug/Release，不在后面添加平台名称
 	end
 
 

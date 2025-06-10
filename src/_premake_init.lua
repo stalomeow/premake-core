@@ -1188,6 +1188,12 @@
 		kind = "list:string",
 	}
 
+	api.register {
+		name = "runtimedeps",
+		scope = "config",
+		kind = "keyed:path",
+	}
+
 	p.api.register {
 		name = "profile",
 		scope = "config",

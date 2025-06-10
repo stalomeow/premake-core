@@ -18,74 +18,53 @@
 	cs2005.elements = {}
 
 	cs2005.elements.project = function (prj)
-		if dotnetbase.isNewFormatProject(prj) then
-			return {
-				dotnetbase.projectElement,
-				dotnetbase.projectProperties,
-				dotnetbase.configurations,
-				dotnetbase.applicationIcon,
-				dotnetbase.references
-			}
-		else
-			return {
-				dotnetbase.xmlDeclaration,
-				dotnetbase.projectElement,
-				dotnetbase.commonProperties,
-				dotnetbase.projectProperties,
-				dotnetbase.configurations,
-				dotnetbase.applicationIcon,
-				dotnetbase.references
-			}
-		end
+		return {
+			dotnetbase.projectElement,
+			dotnetbase.configurationsBeforeSdk,
+			dotnetbase.importSdkProps,
+			dotnetbase.projectProperties,
+			dotnetbase.configurations,
+			dotnetbase.applicationIcon,
+			dotnetbase.references,
+			dotnetbase.importSdkTargets,
+		}
 	end
 
 	cs2005.elements.projectProperties = function (cfg)
-		if dotnetbase.isNewFormatProject(cfg) then
-			return {
-				dotnetbase.outputType,
-				dotnetbase.appDesignerFolder,
-				dotnetbase.rootNamespace,
-				dotnetbase.assemblyName,
-				dotnetbase.netcore.targetFramework,
-				dotnetbase.allowUnsafeBlocks,
-				dotnetbase.fileAlignment,
-				dotnetbase.bindingRedirects,
-				dotnetbase.netcore.useWpf,
-				dotnetbase.csversion,
-				dotnetbase.projectConfigurations,
-				dotnetbase.netcore.enableDefaultCompileItems,
-				dotnetbase.netcore.dotnetsdk
-			}
-		else
-			return {
-				dotnetbase.configurationCondition,
-				dotnetbase.platformCondition,
-				dotnetbase.productVersion,
-				dotnetbase.schemaVersion,
-				dotnetbase.projectGuid,
-				dotnetbase.outputType,
-				dotnetbase.appDesignerFolder,
-				dotnetbase.rootNamespace,
-				dotnetbase.assemblyName,
-				dotnetbase.targetFrameworkVersion,
-				dotnetbase.targetFrameworkProfile,
-				dotnetbase.fileAlignment,
-				dotnetbase.bindingRedirects,
-				dotnetbase.projectTypeGuids,
-				dotnetbase.csversion,
-			}
-		end
+		return {
+			dotnetbase.outputType,
+			dotnetbase.appDesignerFolder,
+			dotnetbase.rootNamespace,
+			dotnetbase.assemblyName,
+			dotnetbase.netcore.targetFramework,
+			dotnetbase.allowUnsafeBlocks,
+			dotnetbase.bindingRedirects,
+			dotnetbase.netcore.useWpf,
+			dotnetbase.csversion,
+			dotnetbase.projectConfigurations,
+			dotnetbase.netcore.enableDefaultCompileItems,
+		}
 	end
 
 	cs2005.elements.configuration = function ()
 		return {
 			dotnetbase.propertyGroup,
 			dotnetbase.debugProps,
-			dotnetbase.outputProps,
 			dotnetbase.compilerProps,
 			dotnetbase.additionalProps,
 			dotnetbase.NoWarn,
 			dotnetbase.documentationfile,
+		}
+	end
+
+	cs2005.elements.configurationBeforeSdk = function ()
+		-- https://github.com/dotnet/sdk/issues/980
+		-- https://github.com/dotnet/msbuild/issues/1603
+
+		-- 必须在导入 .NET SDK 前设置输出目录
+		return {
+			dotnetbase.propertyGroupWithoutPlatformTarget,
+			dotnetbase.outputProps,
 		}
 	end
 
@@ -95,15 +74,4 @@
 	end
 
 	function cs2005.targets(prj)
-		if not dotnetbase.isNewFormatProject(prj) then
-			local bin = iif(_ACTION <= "vs2010", "MSBuildBinPath", "MSBuildToolsPath")
-			_p(1,'<Import Project="$(%s)\\Microsoft.CSharp.targets" />', bin)
-			_p(1,'<!-- To modify your build process, add your task inside one of the targets below and uncomment it.')
-			_p(1,'     Other similar extension points exist, see Microsoft.Common.targets.')
-			_p(1,'<Target Name="BeforeBuild">')
-			_p(1,'</Target>')
-			_p(1,'<Target Name="AfterBuild">')
-			_p(1,'</Target>')
-			_p(1,'-->')
-		end
 	end

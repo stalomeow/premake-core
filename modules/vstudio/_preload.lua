@@ -43,6 +43,12 @@
 	}
 
 	p.api.register {
+		name = "assemblyname",
+		scope = "config",
+		kind  = "string"
+	}
+
+	p.api.register {
 		name = "atl",
 		scope = "config",
 		kind  = "string",
@@ -764,6 +770,7 @@
 	p.api.addAllowed("vectorextensions", { "NEON", "MXU" })
 	p.api.addAllowed("exceptionhandling", {"UnwindTables"})
 	p.api.addAllowed("kind", p.PACKAGING)
+	p.api.addAllowed("kind", "SourceGenerator")
 
 --
 -- Decide when the full module should be loaded.

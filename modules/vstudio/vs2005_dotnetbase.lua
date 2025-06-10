@@ -28,6 +28,7 @@
 		dotnetbase.elements.project = langObj.elements.project
 		dotnetbase.elements.projectProperties = langObj.elements.projectProperties
 		dotnetbase.elements.configuration = langObj.elements.configuration
+		dotnetbase.elements.configurationBeforeSdk = langObj.elements.configurationBeforeSdk
 
 		dotnetbase.langObj = langObj
 	end
@@ -56,18 +57,17 @@
 --
 
 	function dotnetbase.projectElement(prj)
-		if dotnetbase.isNewFormatProject(prj) then
-			_p('<Project Sdk="%s">', dotnetbase.netcore.getsdk(prj))
-		else
-			local ver = ''
-			local action = p.action.current()
-			if action.vstudio.toolsVersion then
-				ver = string.format(' ToolsVersion="%s"', action.vstudio.toolsVersion)
-			end
-			_p('<Project%s DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">', ver)
-		end
+		_p('<Project>')
+		p.push()
 	end
 
+	function dotnetbase.importSdkProps(prj)
+		_p(1, '<Import Project="Sdk.props" Sdk="%s" />', dotnetbase.netcore.getsdk(prj))
+	end
+
+	function dotnetbase.importSdkTargets(prj)
+		_p(1, '<Import Project="Sdk.targets" Sdk="%s" />', dotnetbase.netcore.getsdk(prj))
+	end
 
 --
 -- Write the opening PropertyGroup, which contains the project-level settings.
@@ -102,6 +102,17 @@
 
 	function dotnetbase.configuration(cfg)
 		p.callArray(dotnetbase.elements.configuration, cfg)
+		_p(1,'</PropertyGroup>')
+	end
+
+	function dotnetbase.configurationsBeforeSdk(prj)
+		for cfg in project.eachconfig(prj) do
+			dotnetbase.configurationBeforeSdk(cfg)
+		end
+	end
+
+	function dotnetbase.configurationBeforeSdk(cfg)
+		p.callArray(dotnetbase.elements.configurationBeforeSdk, cfg)
 		_p(1,'</PropertyGroup>')
 	end
 
@@ -278,10 +289,6 @@
 		_p(2,'<ErrorReport>prompt</ErrorReport>')
 		_p(2,'<WarningLevel>4</WarningLevel>')
 
-		if not dotnetbase.isNewFormatProject(cfg) then
-			dotnetbase.allowUnsafeBlocks(cfg)
-		end
-
 		if p.hasFatalCompileWarnings(cfg.fatalwarnings) then
 			_p(2,'<TreatWarningsAsErrors>true</TreatWarningsAsErrors>')
 		end
@@ -335,18 +342,20 @@
 --
 
 	function dotnetbase.outputProps(cfg)
-		local outdir = vstudio.path(cfg, cfg.buildtarget.directory)
-		_x(2,'<OutputPath>%s\\</OutputPath>', outdir)
+		-- https://github.com/dotnet/sdk/issues/980
+		-- https://github.com/dotnet/msbuild/issues/1603
 
-		-- Want to set BaseIntermediateOutputPath because otherwise VS will create obj/
-		-- anyway. But VS2008 throws up ominous warning if present.
+		local outdir = vstudio.path(cfg, cfg.buildtarget.directory)
+		_x(2,'<BaseOutputPath>%s\\</BaseOutputPath>', outdir)
+		_x(2,'<OutputPath>%s\\</OutputPath>', outdir)
+		_x(2, '<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>')
+		_x(2, '<AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>')
+
+		-- 必须设置 BaseIntermediateOutputPath，否则 VS 无论如何都会生成 obj 目录
+		-- BaseIntermediateOutputPath 的值不重要，只要非空即可，最终会使用 IntermediateOutputPath
 		local objdir = vstudio.path(cfg, cfg.objdir)
-		if _ACTION > "vs2008" and not dotnetbase.isNewFormatProject(cfg) then
-			_x(2,'<BaseIntermediateOutputPath>%s\\</BaseIntermediateOutputPath>', objdir)
-			_p(2,'<IntermediateOutputPath>$(BaseIntermediateOutputPath)</IntermediateOutputPath>')
-		else
-			_x(2,'<IntermediateOutputPath>%s\\</IntermediateOutputPath>', objdir)
-		end
+		_x(2,'<BaseIntermediateOutputPath>%s\\</BaseIntermediateOutputPath>', objdir)
+		_x(2,'<IntermediateOutputPath>%s\\</IntermediateOutputPath>', objdir)
 	end
 
 
@@ -525,15 +534,9 @@
 -- Write the list of project dependencies.
 --
 	function dotnetbase.projectReferences(prj)
-		if not dotnetbase.isNewFormatProject(prj) then
-			_p(1,'<ItemGroup>')
-		end
-
 		local deps = project.getdependencies(prj, 'linkOnly')
 		if #deps > 0 then
-			if dotnetbase.isNewFormatProject(prj) then
-				_p(1,'<ItemGroup>')
-			end
+			_p(1,'<ItemGroup>')
 
 			for _, dep in ipairs(deps) do
 				local relpath = vstudio.path(prj, vstudio.projectfile(dep))
@@ -541,19 +544,16 @@
 				_p(3,'<Project>{%s}</Project>', dep.uuid)
 				_x(3,'<Name>%s</Name>', dep.name)
 
-				if not config.isCopyLocal(prj, dep.name, true) then
+				if dep.kind == 'SourceGenerator' then
+					_p(3,"<OutputItemType>Analyzer</OutputItemType>")
+					_p(3,"<ReferenceOutputAssembly>False</ReferenceOutputAssembly>")
+				elseif not config.isCopyLocal(prj, dep.name, true) then
 					_p(3,"<Private>False</Private>")
 				end
 
 				_p(2,'</ProjectReference>')
 			end
 
-			if dotnetbase.isNewFormatProject(prj) then
-				_p(1,'</ItemGroup>')
-			end
-		end
-
-		if not dotnetbase.isNewFormatProject(prj) then
 			_p(1,'</ItemGroup>')
 		end
 	end
@@ -618,6 +618,10 @@
 		end
 	end
 
+	function dotnetbase.propertyGroupWithoutPlatformTarget(cfg)
+		p.push('<PropertyGroup %s>', dotnetbase.condition(cfg))
+	end
+
 
 --
 -- Generators for individual project elements.
@@ -669,8 +673,8 @@
 
 
 	function dotnetbase.assemblyName(cfg)
-		if not dotnetbase.isNewFormatProject(cfg) --[[or cfg.assemblyname]] then
-			_p(2,'<AssemblyName>%s</AssemblyName>', cfg.buildtarget.basename)
+		if cfg.assemblyname then
+			_p(2,'<AssemblyName>%s</AssemblyName>', cfg.assemblyname)
 		end
 	end
 
@@ -687,17 +691,7 @@
 	end
 
 
-	function dotnetbase.fileAlignment(cfg)
-		if _ACTION >= "vs2010" and not dotnetbase.isNewFormatProject(cfg) then
-			_p(2,'<FileAlignment>512</FileAlignment>')
-		end
-	end
-
-
 	function dotnetbase.bindingRedirects(cfg)
-		if _ACTION >= "vs2015" and not dotnetbase.isNewFormatProject(cfg) then
-			_p(2, '<AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>')
-		end
 	end
 
 
@@ -731,7 +725,7 @@
 
 
 	function dotnetbase.rootNamespace(cfg)
-		if not dotnetbase.isNewFormatProject(cfg) or cfg.namespace then
+		if cfg.namespace then
 			_p(2,'<RootNamespace>%s</RootNamespace>', cfg.namespace or cfg.buildtarget.basename)
 		end
 	end
@@ -749,14 +743,6 @@
 		if #cfg.disablewarnings > 0 then
 			local warnings = table.concat(cfg.disablewarnings, ";")
 			_p(2,'<NoWarn>%s</NoWarn>', warnings)
-		end
-	end
-
-	function dotnetbase.targetFrameworkVersion(cfg)
-		local action = p.action.current()
-		local framework = cfg.dotnetframework or action.vstudio.targetFramework
-		if framework and not dotnetbase.isNewFormatProject(cfg) then
-			_p(2,'<TargetFrameworkVersion>v%s</TargetFrameworkVersion>', framework)
 		end
 	end
 
@@ -783,7 +769,7 @@
 
 	function dotnetbase.documentationfile(cfg)
 		if cfg.documentationfile then
-			if _ACTION > "vs2015" and dotnetbase.isNewFormatProject(cfg) and cfg.documentationfile == true  then
+			if _ACTION > "vs2015" and cfg.documentationfile == true  then
 				_p(2,'<GenerateDocumentationFile>true</GenerateDocumentationFile>')
 			else
 				local documentationFile = iif(cfg.documentationfile ~= true, cfg.documentationfile, cfg.targetdir)
@@ -792,29 +778,21 @@
 		end
 	end
 
-	function dotnetbase.isNewFormatProject(cfg)
-		local framework = cfg.dotnetframework
-		if not framework then
-			return false
-		end
-
-		if framework:find('^net') ~= nil then
-			return true
-		end
-
-		return false
-	end
-
 	function dotnetbase.netcore.targetFramework(cfg)
 		local action = p.action.current()
 		local framework = cfg.dotnetframework or action.vstudio.targetFramework
-		if framework and dotnetbase.isNewFormatProject(cfg) then
+		if framework then
 			_p(2,'<TargetFramework>%s</TargetFramework>', framework)
 		end
 	end
 
 	function dotnetbase.netcore.enableDefaultCompileItems(cfg)
-		_p(2,'<EnableDefaultCompileItems>%s</EnableDefaultCompileItems>', iif(cfg.enableDefaultCompileItems, "true", "false"))
+		-- https://learn.microsoft.com/en-us/dotnet/core/project-sdk/msbuild-props#default-item-inclusion-properties
+		local value = iif(cfg.enableDefaultCompileItems, "true", "false")
+		_p(2,'<EnableDefaultCompileItems>%s</EnableDefaultCompileItems>', value)
+		_p(2,'<EnableDefaultEmbeddedResourceItems>%s</EnableDefaultEmbeddedResourceItems>', value)
+		_p(2,'<EnableDefaultItems>%s</EnableDefaultItems>', value)
+		_p(2,'<EnableDefaultNoneItems>%s</EnableDefaultNoneItems>', value)
 	end
 
 	function dotnetbase.netcore.useWpf(cfg)

@@ -74,6 +74,9 @@
 			else
 				info.action = "Page"
 			end
+		elseif ext == ".md" then
+			-- https://stackoverflow.com/questions/69655715/roslyn-how-to-fix-rs2008-warning
+			info.action = "AdditionalFiles"
 		else
 			info.action = "None"
 		end
@@ -327,10 +330,10 @@
 			return "Exe"
 		elseif (cfg.kind == "WindowedApp") then
 			return "WinExe"
-		elseif (cfg.kind == "SharedLib") then
+		elseif (cfg.kind == "SharedLib" or cfg.kind == "SourceGenerator") then
 			return "Library"
 		else
-			error("invalid dotnet kind " .. cfg.kind .. ". Valid kinds are ConsoleApp, WindowsApp, SharedLib")
+			error("invalid dotnet kind " .. cfg.kind .. ". Valid kinds are ConsoleApp, WindowsApp, SharedLib, SourceGenerator")
 		end
 	end
 
