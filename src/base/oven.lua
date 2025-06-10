@@ -917,17 +917,7 @@
 				end
 			end
 
-			-- runtimedeps 默认 PUBLIC，会传递到所有依赖中
-			if srcprj.runtimedeps then
-				local k = "runtimedeps"
-				local v = srcprj.runtimedeps
-				local f = p.field.get(k)
-				if f then
-					properties[k] = p.field.store(f, properties[k], v)
-				end
-			end
-
-			-- 如果当前项目是 StaticLib，不需要处理其他项目 PUBLIC 的链接
+			-- 如果目标项目是 StaticLib，不需要处理其他项目传递的 links
 			if tgt.kind == "StaticLib" and srcprj ~= tgt.project then
 				properties.links = nil
 			end
