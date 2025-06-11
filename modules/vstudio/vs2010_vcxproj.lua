@@ -2157,6 +2157,14 @@
 			end
 		end
 
+		if cfg.system == p.WINDOWS and (cfg.toolset == "clang" or cfg.toolset == "gcc") then
+			if cfg.disablewarnings and #cfg.disablewarnings > 0 then
+				for _, warning in ipairs(cfg.disablewarnings) do
+					table.insert(opts, '-Wno-' .. warning)
+				end
+			end
+		end
+
 		if #opts > 0 then
 			opts = table.concat(opts, " ")
 			m.element("AdditionalOptions", condition, '%s %%(AdditionalOptions)', opts)
@@ -4442,7 +4450,7 @@
 	-- Shared project generation functions
 	--
 
-	function m.gccClangAdditionalCompileOptions(cfg)
+	function m.gccClangAdditionalCompileOptions(cfg, condition)
 		local opts = cfg.buildoptions
 
 		if cfg.disablewarnings and #cfg.disablewarnings > 0 then
