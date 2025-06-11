@@ -973,23 +973,40 @@
 		end
 
 		local function convertRuntimeDepsToCmds(runtimeDeps)
-			local function getCmd(name, abspath)
+			local prerequisites = {}
+			local cmds = {}
+
+			local function insertCmds(name, abspath)
+				if #name == 0 then
+					return
+				end
+
 				-- 如果 name 以 / 结尾，表示是一个目录
 				if string.sub(name, -1) == "/" then
-					return string.format("{COPYDIR} %%[%s] %%[%%{!cfg.targetdir}/%s]", abspath, name)
+					table.insert(cmds, string.format("{COPYDIR} %%[%s] %%[%%{!cfg.targetdir}/%s]", abspath, name))
 				else
-					return string.format('{COPYFILE} %%[%s] %%[%%{!cfg.targetdir}/%s]', abspath, name)
+					-- If the path does not include any directory information, the "." (single dot) current directory is returned.
+					local dir = path.getdirectory(name)
+					if dir ~= "." then
+						-- 如果目录不存在，则创建目录，否则后面 COPYFILE 可能会失败
+						table.insert(prerequisites, string.format('{MKDIR} %%[%%{!cfg.targetdir}/%s]', dir))
+					end
+					table.insert(cmds, string.format('{COPYFILE} %%[%s] %%[%%{!cfg.targetdir}/%s]', abspath, name))
 				end
 			end
 
-			local cmds = {}
 			for name, abspath in pairs(runtimeDeps) do
-				if #name > 0 then
-					-- 排序，避免每次生成的顺序不同导致 project file 变化
-					table.insertsorted(cmds, getCmd(name, abspath))
-				end
+				insertCmds(name, abspath)
 			end
-			return cmds
+
+			prerequisites = table.unique(prerequisites)
+			cmds = table.unique(cmds)
+
+			-- 排序，避免每次生成的顺序不同导致 project file 变化
+			table.sort(prerequisites)
+			table.sort(cmds)
+
+			return table.join(prerequisites, cmds)
 		end
 
 		local function processRuntimeDeps(cfg)
